@@ -206,35 +206,35 @@ export default function FashionStore() {
     setCurrentPage("checkout")
   }
 
-  const handleOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Заменить всю функцию на это
+const handleOrderSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
 
-    // Prepare order data for Telegram bot
-    const orderData = {
-      items: cart,
-      customer: orderForm,
-      total: getTotalPrice() + shippingCost(),
-      shippingCost: shippingCost(),
-      timestamp: new Date().toISOString(),
+  // 1) Подготовим данные заказа (как у тебя и было)
+  const orderData = {
+    items: cart,
+    customer: orderForm,
+    total: getTotalPrice() + shippingCost(),
+    shippingCost: shippingCost(),
+  }
+
+  try {
+    // 2) Отправляем на наш API
+    const res = await fetch("/api/telegram/send-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+    })
+    const data = await res.json()
+
+    if (!res.ok || !data?.success || !data?.botLink) {
+      throw new Error(data?.error || "Не удалось получить ссылку на бота")
     }
 
-    try {
-      // Send order to Telegram bot
-      await fetch("/api/telegram/send-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      })
-    } catch (error) {
-      console.error("Error sending order to Telegram:", error)
-    }
-
-    // Simulate order processing
+    // 3) Покажем экран успеха (как было)
     setShowOrderSuccess(true)
 
-    // Clear cart and form after successful order, then redirect to Telegram bot
+    // 4) Через 3 секунды чистим состояние и ОТКРЫВАЕМ ИМЕННО botLink
     setTimeout(() => {
       setCart([])
       setOrderForm({
@@ -251,10 +251,15 @@ export default function FashionStore() {
       setShowOrderSuccess(false)
       setCurrentPage("home")
 
-      // Redirect to Telegram bot
-      window.open("https://t.me/OtrodyaBot", "_blank")
+      // ВАЖНО: больше НЕ "https://t.me/OtrodyaBot", а ссылка из ответа
+      window.open(data.botLink, "_blank")
     }, 3000)
+  } catch (error) {
+    console.error("Error sending order to Telegram:", error)
+    alert("Ошибка оформления заказа. Попробуйте ещё раз.")
   }
+}
+
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode)
