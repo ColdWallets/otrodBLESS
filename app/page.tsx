@@ -144,8 +144,8 @@ export default function FashionStore() {
       front: "/tshirt-front.png",
       back: "/tshirt-back.png",
     },
-    description: "ЭКСКЛЮЗИВНАЯ ФУТБОЛКА С АВТОРСКИМ ДИЗАЙНОМ",
-    composition: "100% ХЛОПОК ПРЕМИУМ\nПЕЧАТЬ: ШЕЛКОГРАФИЯ",
+    description: "“ОТРОДЬЕ ДЕНЬГИ” tee",
+    composition: "100% ХЛОПОК ПРЕМИУМ\nПЕЧАТЬ: цифровая прямая печать (DTG)",
     sizes: ["S", "M", "L", "XL", "XXL"],
   }
 
