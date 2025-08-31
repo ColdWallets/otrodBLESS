@@ -24,7 +24,13 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const order = body.order // ✅ берём строго order, как было в твоём исходнике
+
+    // ✅ универсальный парсер
+    const order = body.order ? body.order : body
+
+    if (!order) {
+      throw new Error("Нет данных заказа в body")
+    }
 
     const orderId = order.orderId || order.id || "—"
 
