@@ -22,12 +22,13 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
 }
 
 export async function POST(req: Request) {
+  let body: any
   try {
-    const body = await req.json()
+    body = await req.json()
+    console.log("👉 RAW ORDER BODY:", JSON.stringify(body, null, 2)) // 👈 ЛОГ В VERCEL
 
-    // ✅ универсальный парсер
+    // пробуем достать заказ
     const order = body.order ? body.order : body
-
     if (!order) {
       throw new Error("Нет данных заказа в body")
     }
@@ -71,8 +72,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error("send-order error", e)
+
+    // 🔧 отправим сырой JSON прямо админу, чтобы видеть что прилетает
+    const rawJson = JSON.stringify(body || {}, null, 2)
+    for (const adminId of ADMIN_IDS) {
+      await sendMessage(
+        adminId,
+        `⚠️ Ошибка обработки заказа\n\n<pre>${rawJson}</pre>`,
+        { disable_web_page_preview: true }
+      )
+    }
+
     return NextResponse.json(
-      { ok: false, error: String(e), stack: (e as any).stack },
+      {
+        ok: false,
+        error: String(e),
+        requestBody: body || "не удалось распарсить",
+      },
       { status: 500 }
     )
   }
