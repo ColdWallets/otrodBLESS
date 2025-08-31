@@ -8,6 +8,7 @@ const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || "OtrodyaBot"
 
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`
 
+// Функция для отправки сообщений в Telegram
 async function sendMessage(chatId: number, text: string, extra: any = {}) {
   await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
     method: "POST",
@@ -26,13 +27,13 @@ export async function POST(req: Request) {
     const body = await req.json()
     console.log("👉 RAW ORDER BODY:", JSON.stringify(body, null, 2))
 
-    // Подхватываем заказ
+    // Берем заказ (он может приходить как body или body.order)
     const order = body.order ? body.order : body
 
-    // 🔹 Генерим ID сами (так как фронт его не шлёт)
+    // Генерируем уникальный orderId
     const orderId = Date.now()
 
-    // 🔹 Формируем список товаров
+    // Формируем список товаров
     const itemsText = (order.items || [])
       .map(
         (i: any, idx: number) =>
@@ -42,10 +43,11 @@ export async function POST(req: Request) {
       )
       .join("\n")
 
-    // 🔹 Данные клиента
+    // Данные клиента
     const customer = order.customer || {}
     const customerName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim()
 
+    // Сообщение для админов
     const text = [
       "🛒 <b>Новый заказ</b>",
       `№: <code>${orderId}</code>`,
@@ -72,8 +74,12 @@ export async function POST(req: Request) {
       await sendMessage(adminId, text, { disable_web_page_preview: true })
     }
 
-    // ✅ возвращаем orderId, чтобы сайт не ругался
-    return NextResponse.json({ ok: true, orderId })
+    // ✅ Возвращаем правильный ответ для фронта
+    return NextResponse.json({
+      ok: true,
+      orderId,
+      orderLink: `https://t.me/${BOT_USERNAME}?start=order_${orderId}`,
+    })
   } catch (e) {
     console.error("send-order error", e)
     return NextResponse.json(
