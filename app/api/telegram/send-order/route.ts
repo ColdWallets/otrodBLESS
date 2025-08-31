@@ -24,33 +24,28 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-
-    // Универсально: если прилетает { order: {...} }, то берём order
-    const order = body.order ? body.order : body
+    const order = body.order // ✅ берём строго order, как было в твоём исходнике
 
     const orderId = order.orderId || order.id || "—"
 
-    const items = order.items || order.cart || []
-    const itemsText = Array.isArray(items)
-      ? items
-          .map(
-            (i: any) =>
-              `${i.name || "??"} — ${i.size || ""} × ${i.quantity || 1} = ${
-                i.price || 0
-              }`
-          )
-          .join("\n")
-      : "—"
+    const itemsText = (order.items || [])
+      .map(
+        (i: any) =>
+          `${i.name || "??"} — ${i.size || ""} × ${i.quantity || 1} = ${
+            i.price || 0
+          }`
+      )
+      .join("\n")
 
     const text = [
       "🛒 <b>Новый заказ</b>",
       `№: <code>${orderId}</code>`,
       "",
       "Товары:",
-      itemsText,
+      itemsText || "—",
       "",
       "Клиент:",
-      `Имя: ${order.customerName || order.name || "??"}`,
+      `Имя: ${order.customerName || "??"}`,
       `Телефон: ${order.phone || "??"}`,
       `Email: ${order.email || "??"}`,
       `Город: ${order.city || "??"}`,
