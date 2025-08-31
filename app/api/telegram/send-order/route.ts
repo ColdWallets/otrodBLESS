@@ -22,27 +22,29 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
 }
 
 export async function POST(req: Request) {
-  let body: any
   try {
-    body = await req.json()
-    console.log("👉 RAW ORDER BODY:", JSON.stringify(body, null, 2)) // 👈 ЛОГ В VERCEL
+    const body = await req.json()
+    console.log("👉 RAW ORDER BODY:", JSON.stringify(body, null, 2))
 
-    // пробуем достать заказ
+    // Подхватываем заказ
     const order = body.order ? body.order : body
-    if (!order) {
-      throw new Error("Нет данных заказа в body")
-    }
 
-    const orderId = order.orderId || order.id || "—"
+    // 🔹 Генерим ID сами (так как фронт его не шлёт)
+    const orderId = Date.now()
 
+    // 🔹 Формируем список товаров
     const itemsText = (order.items || [])
       .map(
-        (i: any) =>
-          `${i.name || "??"} — ${i.size || ""} × ${i.quantity || 1} = ${
-            i.price || 0
-          }`
+        (i: any, idx: number) =>
+          `${idx + 1}. ${i.product?.name || "??"} — ${i.size || ""} × ${
+            i.quantity || 1
+          } = ${(i.product?.price || 0) * (i.quantity || 1)}`
       )
       .join("\n")
+
+    // 🔹 Данные клиента
+    const customer = order.customer || {}
+    const customerName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim()
 
     const text = [
       "🛒 <b>Новый заказ</b>",
@@ -52,19 +54,20 @@ export async function POST(req: Request) {
       itemsText || "—",
       "",
       "Клиент:",
-      `Имя: ${order.customerName || "??"}`,
-      `Телефон: ${order.phone || "??"}`,
-      `Email: ${order.email || "??"}`,
-      `Город: ${order.city || "??"}`,
-      `Адрес: ${order.address || "??"}`,
-      `Индекс: ${order.postalCode || "??"}`,
+      `Имя: ${customerName || "??"}`,
+      `Телефон: ${customer.phone || "??"}`,
+      `Email: ${customer.email || "??"}`,
+      `Город: ${customer.city || "??"}`,
+      `Адрес: ${customer.address || "??"}`,
+      `Индекс: ${customer.postalCode || "??"}`,
       "",
-      `Доставка: ${order.deliveryPrice ?? "??"}`,
-      `Итого: ${order.totalPrice ?? "??"}`,
+      `Доставка: ${order.shippingCost ?? "??"}`,
+      `Итого: ${order.total ?? "??"}`,
       "",
       `🔗 <a href="https://t.me/${BOT_USERNAME}?start=order_${orderId}">Открыть/создать чат с клиентом</a>`,
     ].join("\n")
 
+    // Отправляем всем админам
     for (const adminId of ADMIN_IDS) {
       await sendMessage(adminId, text, { disable_web_page_preview: true })
     }
@@ -72,23 +75,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error("send-order error", e)
-
-    // 🔧 отправим сырой JSON прямо админу, чтобы видеть что прилетает
-    const rawJson = JSON.stringify(body || {}, null, 2)
-    for (const adminId of ADMIN_IDS) {
-      await sendMessage(
-        adminId,
-        `⚠️ Ошибка обработки заказа\n\n<pre>${rawJson}</pre>`,
-        { disable_web_page_preview: true }
-      )
-    }
-
     return NextResponse.json(
-      {
-        ok: false,
-        error: String(e),
-        requestBody: body || "не удалось распарсить",
-      },
+      { ok: false, error: String(e) },
       { status: 500 }
     )
   }
