@@ -72,7 +72,8 @@ export async function POST(req: Request) {
       await sendMessage(adminId, text, { disable_web_page_preview: true })
     }
 
-    return NextResponse.json({ ok: true })
+    // ✅ возвращаем orderId, чтобы сайт не ругался
+    return NextResponse.json({ ok: true, orderId })
   } catch (e) {
     console.error("send-order error", e)
     return NextResponse.json(
