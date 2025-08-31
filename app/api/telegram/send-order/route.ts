@@ -24,11 +24,16 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
+    // Можно оставить лог для дебага:
     console.log("👉 RAW ORDER BODY:", JSON.stringify(body, null, 2))
 
-    const order = body.order ? body.order : body
+    // Твой фронт шлёт сразу объект (или в body.order) — поддержим оба варианта
+    const order: any = body.order ? body.order : body
+
+    // Генерируем orderId на сервере
     const orderId = Date.now()
 
+    // Товары
     const itemsText = (order.items || [])
       .map(
         (i: any, idx: number) =>
@@ -38,9 +43,11 @@ export async function POST(req: Request) {
       )
       .join("\n")
 
-    const customer = order.customer || {}
-    const customerName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim()
+    // Клиент
+    const c = order.customer || {}
+    const customerName = `${c.firstName || ""} ${c.lastName || ""}`.trim()
 
+    // Текст уведомления админам
     const text = [
       "🛒 <b>Новый заказ</b>",
       `№: <code>${orderId}</code>`,
@@ -50,11 +57,11 @@ export async function POST(req: Request) {
       "",
       "Клиент:",
       `Имя: ${customerName || "??"}`,
-      `Телефон: ${customer.phone || "??"}`,
-      `Email: ${customer.email || "??"}`,
-      `Город: ${customer.city || "??"}`,
-      `Адрес: ${customer.address || "??"}`,
-      `Индекс: ${customer.postalCode || "??"}`,
+      `Телефон: ${c.phone || "??"}`,
+      `Email: ${c.email || "??"}`,
+      `Город: ${c.city || "??"}`,
+      `Адрес: ${c.address || "??"}`,
+      `Индекс: ${c.postalCode || "??"}`,
       "",
       `Доставка: ${order.shippingCost ?? "??"}`,
       `Итого: ${order.total ?? "??"}`,
@@ -62,18 +69,23 @@ export async function POST(req: Request) {
       `🔗 <a href="https://t.me/${BOT_USERNAME}?start=order_${orderId}">Открыть/создать чат с клиентом</a>`,
     ].join("\n")
 
+    // Шлём всем админам
     for (const adminId of ADMIN_IDS) {
       await sendMessage(adminId, text, { disable_web_page_preview: true })
     }
 
-    // 🔹 Вариант 1
+    // ⬇️ Возвращаем формат, который твой фронт может ожидать
     return NextResponse.json({
-      ok: true,
+      success: true,
+      message: "Заказ успешно оформлен",
       orderId,
       orderLink: `https://t.me/${BOT_USERNAME}?start=order_${orderId}`,
     })
   } catch (e) {
     console.error("send-order error", e)
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
+    return NextResponse.json(
+      { success: false, message: "Order failed", error: String(e) },
+      { status: 500 }
+    )
   }
 }
