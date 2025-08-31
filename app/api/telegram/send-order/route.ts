@@ -12,38 +12,53 @@ async function sendMessage(chatId: number, text: string, extra: any = {}) {
   await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", ...extra }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      ...extra,
+    }),
   })
 }
 
 export async function POST(req: Request) {
   try {
-    const order = await req.json()
+    const body = await req.json()
 
-    const orderId = order.orderId
+    // Универсально: если прилетает { order: {...} }, то берём order
+    const order = body.order ? body.order : body
+
+    const orderId = order.orderId || order.id || "—"
+
+    const items = order.items || order.cart || []
+    const itemsText = Array.isArray(items)
+      ? items
+          .map(
+            (i: any) =>
+              `${i.name || "??"} — ${i.size || ""} × ${i.quantity || 1} = ${
+                i.price || 0
+              }`
+          )
+          .join("\n")
+      : "—"
 
     const text = [
       "🛒 <b>Новый заказ</b>",
       `№: <code>${orderId}</code>`,
       "",
       "Товары:",
-      order.items
-        .map(
-          (i: any) =>
-            `${i.name} — ${i.size || ""} × ${i.quantity} = ${i.price}`
-        )
-        .join("\n"),
+      itemsText,
       "",
       "Клиент:",
-      `Имя: ${order.customerName}`,
-      `Телефон: ${order.phone}`,
-      `Email: ${order.email}`,
-      `Город: ${order.city}`,
-      `Адрес: ${order.address}`,
-      `Индекс: ${order.postalCode}`,
+      `Имя: ${order.customerName || order.name || "??"}`,
+      `Телефон: ${order.phone || "??"}`,
+      `Email: ${order.email || "??"}`,
+      `Город: ${order.city || "??"}`,
+      `Адрес: ${order.address || "??"}`,
+      `Индекс: ${order.postalCode || "??"}`,
       "",
-      `Доставка: ${order.deliveryPrice}`,
-      `Итого: ${order.totalPrice}`,
+      `Доставка: ${order.deliveryPrice ?? "??"}`,
+      `Итого: ${order.totalPrice ?? "??"}`,
       "",
       `🔗 <a href="https://t.me/${BOT_USERNAME}?start=order_${orderId}">Открыть/создать чат с клиентом</a>`,
     ].join("\n")
@@ -55,6 +70,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error("send-order error", e)
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, error: String(e), stack: (e as any).stack },
+      { status: 500 }
+    )
   }
 }
